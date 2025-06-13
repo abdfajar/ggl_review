@@ -5,27 +5,25 @@ import re
 import os
 import time
 import math
+from tkinter import Tk, filedialog
 
+# Fungsi utilitas
 def sanitize_filename(name):
     return re.sub(r'[^a-zA-Z0-9_\-]', '_', name)
 
 def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000
+    R = 6371000  # Radius bumi dalam meter
     phi1 = math.radians(lat1)
     phi2 = math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
-
-    a = math.sin(delta_phi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda/2)**2
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    distance = R * c
-    return distance
+    return R * c
 
 def search_places(lat, lng, keyword, api_key, max_results=100):
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
     session = requests.Session()
-
     location = f"{lat},{lng}"
     params = {
         "location": location,
@@ -33,17 +31,14 @@ def search_places(lat, lng, keyword, api_key, max_results=100):
         "rankby": "distance",
         "key": api_key
     }
-
     all_results = []
 
     while len(all_results) < max_results:
         response = session.get(url, params=params)
         data = response.json()
         results = data.get("results", [])
-
         if results:
             all_results.extend(results)
-
         if 'next_page_token' in data:
             next_page_token = data['next_page_token']
             time.sleep(2)
@@ -90,7 +85,7 @@ def save_reviews(reviews, place_name, place_type, drive_path):
     df_reviews.to_csv(full_path, index=False)
     return full_path
 
-def app(lat, lng, keyword, city, api_key, filename, drive_path="/content/drive/MyDrive/API_Places/Kesehatan", max_results=100):
+def app(lat, lng, keyword, city, api_key, filename, drive_path, max_results=100):
     lat = float(lat)
     lng = float(lng)
 
@@ -108,7 +103,6 @@ def app(lat, lng, keyword, city, api_key, filename, drive_path="/content/drive/M
         types = ", ".join(place.get("types", []))
         rating = place.get("rating")
         vicinity = place.get("vicinity")
-
         distance_meters = haversine(lat, lng, place_lat, place_lng)
 
         details = fetch_place_details(place_id, api_key)
@@ -135,29 +129,47 @@ def app(lat, lng, keyword, city, api_key, filename, drive_path="/content/drive/M
     full_csv_path = os.path.join(drive_path, f"{safe_filename}.csv")
     df.to_csv(full_csv_path, index=False)
 
-    st.success(f"✅ Data utama disimpan di: {full_csv_path}")
-    st.info(f"📁 Review per tempat disimpan di folder: {os.path.join(drive_path, 'reviews')}")
-
+    st.success(f"📁 Data utama disimpan di: {full_csv_path}")
+    st.info(f"💬 Review per tempat disimpan di folder: {os.path.join(drive_path, 'reviews')}")
     return df
 
+# Fungsi pilih folder (lokal)
+def pilih_folder():
+    root = Tk()
+    root.withdraw()
+    folder_path = filedialog.askdirectory()
+    root.destroy()
+    return folder_path
+
 # Streamlit Interface
-st.title("Google Places Search Tool")
-st.markdown("""
-Cari tempat di sekitar berdasarkan **keyword** dan **jarak dari titik pusat**.<br>
-Hasil disimpan dalam CSV dan review per tempat disimpan terpisah.
-""", unsafe_allow_html=True)
+st.set_page_config(page_title="Google Places Search", layout="centered")
+st.title("🗺️ Google Places Search Tool (Streamlit)")
 
-lat = st.text_input("Latitude")
-lng = st.text_input("Longitude")
-keyword = st.text_input("Keyword (misal: rumah sakit, klinik, apotek)")
-city = st.text_input("City")
+lat = st.text_input("Latitude", "")
+lng = st.text_input("Longitude", "")
+keyword = st.text_input("Keyword (misal: rumah sakit, apotek)", "")
+city = st.text_input("City", "")
 api_key = st.text_input("Google API Key", type="password")
-filename = st.text_input("Filename to Save (without .csv)")
-drive_path = st.text_input("Drive Path", value="/content/drive/MyDrive/API_Places/Kesehatan")
+filename = st.text_input("Nama file untuk disimpan (tanpa .csv)")
 
-if st.button("Run Search"):
-    if lat and lng and keyword and city and api_key and filename:
-        df_result = app(lat, lng, keyword, city, api_key, filename, drive_path)
-        st.dataframe(df_result)
+if "folder_path" not in st.session_state:
+    st.session_state["folder_path"] = ""
+
+if st.button("📂 Pilih Folder Penyimpanan"):
+    selected = pilih_folder()
+    if selected:
+        st.session_state["folder_path"] = selected
+        st.success(f"Folder dipilih: {selected}")
     else:
-        st.warning("Mohon lengkapi semua input sebelum menjalankan pencarian.")
+        st.warning("Tidak ada folder yang dipilih.")
+
+if st.button("🔍 Jalankan Pencarian"):
+    if not st.session_state["folder_path"]:
+        st.error("❗ Silakan pilih folder penyimpanan terlebih dahulu.")
+    elif not (lat and lng and keyword and api_key and filename):
+        st.error("❗ Semua field wajib diisi.")
+    else:
+        with st.spinner("Sedang mencari tempat..."):
+            df_result = app(lat, lng, keyword, city, api_key, filename, st.session_state["folder_path"])
+            st.success("Pencarian selesai.")
+            st.dataframe(df_result)
