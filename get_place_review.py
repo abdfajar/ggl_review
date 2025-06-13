@@ -6,7 +6,6 @@ import os
 import time
 import math
 import zipfile
-import shutil
 from io import BytesIO
 
 def sanitize_filename(name):
@@ -18,10 +17,8 @@ def haversine(lat1, lon1, lat2, lon2):
     phi2 = math.radians(lat2)
     delta_phi = math.radians(lat2 - lat1)
     delta_lambda = math.radians(lon2 - lon1)
-
-    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    a = math.sin(delta_phi / 2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2)**2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
     return R * c
 
 def search_places(lat, lng, keyword, api_key, max_results=100):
@@ -29,7 +26,6 @@ def search_places(lat, lng, keyword, api_key, max_results=100):
     session = requests.Session()
     location = f"{lat},{lng}"
     params = {"location": location, "keyword": keyword, "rankby": "distance", "key": api_key}
-
     all_results = []
 
     while len(all_results) < max_results:
@@ -114,18 +110,17 @@ def app(lat, lng, keyword, city, filename, max_results=100):
         website = details.get("website")
         summary = details.get("editorial_summary", {}).get("overview")
         reviews = details.get("reviews", [])
-        review_snip = reviews[0].get("text") if reviews else None
 
         save_reviews(reviews, name, types, folder_path)
 
         place_data.append([
             place_id, name, place_lat, place_lng, types, rating,
-            vicinity, city, distance, phone, website, summary, review_snip
+            vicinity, city, distance, phone, website, summary
         ])
 
     df = pd.DataFrame(place_data, columns=[
         "Place ID", "Place Name", "Lat", "Long", "Type", "Rating", "Vicinity",
-        "City", "Distance (meters)", "Phone", "Website", "Summary", "Review Snippet"
+        "City", "Distance (meters)", "Phone", "Website", "Summary"
     ])
 
     safe_filename = sanitize_filename(filename)
