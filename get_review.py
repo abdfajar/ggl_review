@@ -89,7 +89,12 @@ def save_reviews(reviews, place_name, place_type, folder_path):
     df_reviews.to_csv(full_path, index=False)
     return full_path
 
-def app(lat, lng, keyword, city, api_key, filename, folder_path, max_results=100):
+def app(lat, lng, keyword, city, filename, folder_path, max_results=100):
+    api_key = os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        st.error("❗ GOOGLE_API_KEY belum diatur di variabel lingkungan.")
+        return None
+
     lat = float(lat)
     lng = float(lng)
 
@@ -157,7 +162,6 @@ with st.form("search_form"):
         keyword = st.text_input("Keyword Pencarian", "klinik")
     with col2:
         city = st.text_input("Nama Kota", "")
-        api_key = st.text_input("Google API Key", type="password")
         filename = st.text_input("Nama file hasil (tanpa .csv)", "hasil_cari")
 
     folder_path = st.text_input("📂 Path folder penyimpanan (contoh: /home/user/data)")
@@ -166,9 +170,10 @@ with st.form("search_form"):
 if submitted:
     if not folder_path:
         st.error("❗ Silakan isi path folder penyimpanan.")
-    elif not (lat and lng and keyword and api_key and filename):
+    elif not (lat and lng and keyword and filename):
         st.error("❗ Semua field wajib diisi.")
     else:
         with st.spinner("Sedang mencari tempat..."):
-            df_result = app(lat, lng, keyword, city, api_key, filename, folder_path)
-            st.dataframe(df_result)
+            df_result = app(lat, lng, keyword, city, filename, folder_path)
+            if df_result is not None:
+                st.dataframe(df_result)
