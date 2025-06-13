@@ -135,10 +135,10 @@ def app(lat, lng, keyword, city, api_key, filename, drive_path, max_results=100)
 
 # Fungsi pilih folder (lokal)
 def pilih_folder():
-    root = Tk()
-    root.withdraw()
+    'root = Tk()
+    'root.withdraw()
     folder_path = filedialog.askdirectory()
-    root.destroy()
+    'root.destroy()
     return folder_path
 
 # Streamlit Interface
